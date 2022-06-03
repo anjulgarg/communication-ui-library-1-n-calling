@@ -1,31 +1,37 @@
 import { Call, CallAgent } from "@azure/communication-calling";
 import { AzureCommunicationTokenCredential } from "@azure/communication-common";
 import {
+  CallAgentProvider,
+  CallClientProvider,
+  CallProvider,
   createStatefulCallClient,
   DEFAULT_COMPONENT_ICONS,
   StatefulCallClient,
+  FluentThemeProvider,
 } from "@azure/communication-react";
-import { PrimaryButton, registerIcons, Spinner, Stack } from "@fluentui/react";
+import {
+  PrimaryButton,
+  registerIcons,
+  Spinner,
+  Stack,
+  initializeIcons,
+} from "@fluentui/react";
 import { useEffect, useState } from "react";
 import { CallScreen } from "./CallScreen";
 import { CenteredContent } from "./Components/CenteredContent";
 import { HomeScreen } from "./HomeScreen";
 import { Lobby } from "./Lobby";
+import { fetchTokenResponse } from "./utils/AppUtils";
 
 type AppPages = "home" | "initClient" | "config" | "lobby" | "call";
 
-registerIcons({
-  icons: {
-    ...DEFAULT_COMPONENT_ICONS,
-  },
-});
+initializeIcons();
+registerIcons({ icons: DEFAULT_COMPONENT_ICONS });
 
 function App(): JSX.Element {
   const [page, setPage] = useState<AppPages>("home");
-  const userToken =
-    "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEwNCIsIng1dCI6IlJDM0NPdTV6UENIWlVKaVBlclM0SUl4Szh3ZyIsInR5cCI6IkpXVCJ9.eyJza3lwZWlkIjoiYWNzOmRkOTc1M2MwLTZlNjItNGY3NC1hYjBmLWM5NGY5NzIzYjRlYl8wMDAwMDAxMS1jMTA2LTU1YWMtNTcwYy0xMTNhMGQwMDdmYjAiLCJzY3AiOjE3OTIsImNzaSI6IjE2NTQxMTg0NjEiLCJleHAiOjE2NTQyMDQ4NjEsImFjc1Njb3BlIjoidm9pcCIsInJlc291cmNlSWQiOiJkZDk3NTNjMC02ZTYyLTRmNzQtYWIwZi1jOTRmOTcyM2I0ZWIiLCJpYXQiOjE2NTQxMTg0NjF9.j6bTEArKr6opQIh_cr3EoXSnPB87UJCEaQ7Dx-4___zxCOAdXPQn7eV-OQGYn-CNVUFAnfo-9_aqR8ZEiDcCrW88AnKAr8tirpU4HBg9m7d6CTbgK2_ykvLL-s15CV-bTUryP-e2CVf5Q0b-u19kVbgiOcgLtiMXBNbl_0CaKRPrcpMIewQDpifiLZwT3d7mzrk-SVksyE-F3iL7PyUdLpf88vLFZ_kmP2gfsRIgo27Kg5B6E9_7tgD3e399DkGj15XY9klSYngn9v3VhFvLux-aOUoBbM-Hns9LOoU0B_ro0xy8dQpWUudDDljJtHUv0n3OT-DY5XUM__j5Fvce9A";
-  const userId =
-    "8:acs:dd9753c0-6e62-4f74-ab0f-c94f9723b4eb_00000011-c106-55ac-570c-113a0d007fb0";
+  const [token, setToken] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
   const [displayName, setDisplayName] = useState<string>();
   const [receiverId, setReceiverId] = useState<
     { communicationUserId: string } | { id: string }
@@ -35,6 +41,34 @@ function App(): JSX.Element {
     useState<StatefulCallClient>();
   const [callAgent, setCallAgent] = useState<CallAgent>();
   const [call, setCall] = useState<Call>();
+
+  // Get Azure Communications Service token from the server
+  useEffect(() => {
+    (async () => {
+      try {
+        const { token, user } = await fetchTokenResponse();
+        setToken(token);
+        setUserId(user);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, []);
+
+  /** If call state is disconnected, return to home page.  */
+  useEffect(() => {
+    if (!call) return;
+    const callStateListener = () => {
+      if (call.state === "Disconnected") {
+        setCall(undefined);
+        setPage("home");
+      }
+    };
+    call.on("stateChanged", callStateListener);
+    return () => {
+      call.off("stateChanged", callStateListener);
+    };
+  }, [call]);
 
   /**
    * Initialize the stateful call client
@@ -53,7 +87,7 @@ function App(): JSX.Element {
    */
   useEffect(() => {
     if (callAgent === undefined && statefulCallClient && displayName) {
-      const tokenCredential = new AzureCommunicationTokenCredential(userToken);
+      const tokenCredential = new AzureCommunicationTokenCredential(token);
       const createCallAgent = async () => {
         console.log("Creating call agent");
         setCallAgent(
@@ -67,7 +101,7 @@ function App(): JSX.Element {
     return () => {
       callAgent && callAgent.dispose();
     };
-  }, [callAgent, displayName, statefulCallClient]);
+  }, [callAgent, displayName, statefulCallClient, token]);
 
   switch (page) {
     case "home": {
@@ -114,12 +148,20 @@ function App(): JSX.Element {
       document.title = "ACS UI Library 1:N Call";
       if (statefulCallClient && callAgent && receiverId && call) {
         return (
-          <CallScreen
-            callClient={statefulCallClient}
-            callAgent={callAgent}
-            receiverId={receiverId}
-            call={call}
-          />
+          <FluentThemeProvider>
+            <CallClientProvider callClient={statefulCallClient}>
+              <CallAgentProvider callAgent={callAgent}>
+                <CallProvider call={call}>
+                  <CallScreen
+                    callClient={statefulCallClient}
+                    callAgent={callAgent}
+                    receiverId={receiverId}
+                    call={call}
+                  />
+                </CallProvider>
+              </CallAgentProvider>
+            </CallClientProvider>
+          </FluentThemeProvider>
         );
       } else {
         return (

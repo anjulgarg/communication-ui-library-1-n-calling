@@ -11,9 +11,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   width: 100%;
-  min-height: 100%;
   height: 100%;
-  position: relative;
 }
 
 code {
@@ -24,4 +22,15 @@ code {
 .Root {
   height: 100%;
   width: 100%;
+}
+
+.wrapper {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-provider {
+  height: 0;
 }

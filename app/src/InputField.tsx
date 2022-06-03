@@ -10,7 +10,7 @@ import {
 } from "./styles/InputField.styles";
 
 interface InputFieldProps {
-  setValue(displayName: string): void;
+  setValue(value: string): void;
   setEmptyWarning?(isEmpty: boolean): void;
   isEmpty?: boolean;
   defaultValue?: string;
