@@ -1,9 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { Image, PrimaryButton, Stack, Text } from "@fluentui/react";
-import { useState } from "react";
+import {
+  Call,
+  CallAgent,
+  IncomingCall,
+  IncomingCallEvent,
+} from "@azure/communication-calling";
+import { CommunicationUserIdentifier } from "@azure/communication-common";
+import { Image, PrimaryButton, Stack, Text, TextField } from "@fluentui/react";
+import { useEffect, useRef, useState } from "react";
 import heroSVG from "./assets/hero.svg";
+import { IncomingCallToast } from "./IncomingCallAlert";
 import { InputField } from "./InputField";
 import {
   buttonStyle,
@@ -16,80 +24,140 @@ import {
 } from "./styles/HomeScreen.styles";
 
 export interface HomeScreenProps {
+  callAgent: CallAgent;
+  userId?: CommunicationUserIdentifier;
   startCallHandler(callDetails: {
-    displayName: string;
-    receiverId?: { communicationUserId: string } | { id: string };
+    receiverId: { communicationUserId: string } | { id: string };
   }): void;
+  onAcceptIncomingCall(call: Call): void;
 }
 
 export const HomeScreen = (props: HomeScreenProps): JSX.Element => {
+  const { callAgent, userId, startCallHandler, onAcceptIncomingCall } = props;
   const imageProps = { src: heroSVG.toString() };
   const headerTitle = "Call an Azure Communication User";
   const buttonText = "Next";
 
   const [receiverId, setReceiverId] = useState<string | undefined>(undefined);
-  const [displayName, setDisplayName] = useState<string | undefined>(undefined);
-  const buttonEnabled = displayName;
+  const [incomingCall, setIncomingCall] = useState<IncomingCall>();
+  const interval = useRef<NodeJS.Timer>();
 
-  const onStartCall = (): void => {
-    if (!displayName) {
-      return;
+  /**
+   * Subscribe to incoming call events.
+   */
+  useEffect(() => {
+    const incomingCallListener: IncomingCallEvent = ({ incomingCall }) => {
+      setIncomingCall(incomingCall);
+    };
+    callAgent.on("incomingCall", incomingCallListener);
+    return () => {
+      callAgent.off("incomingCall", incomingCallListener);
+    };
+  }, [callAgent]);
+
+  /**
+   * Incoming Call Ringtone
+   */
+  useEffect(() => {
+    if (incomingCall) {
+      const audio = new Audio(
+        "https://cdn.freesound.org/previews/29/29621_98464-lq.mp3"
+      );
+      interval.current = setInterval(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.play();
+      }, 3000);
+    } else {
+      clearInterval(interval.current);
     }
+    return () => {
+      clearInterval(interval.current);
+    };
+  }, [incomingCall]);
 
+  /**
+   * Start call handler
+   */
+  const onStartCall = (): void => {
     const receiverCommunicationId = receiverId
       ? { communicationUserId: receiverId }
       : { id: "8:echo123" };
 
-    props.startCallHandler({
-      displayName,
+    startCallHandler({
       receiverId: receiverCommunicationId,
     });
   };
 
+  const onRejectCall = (): void => {
+    if (incomingCall) {
+      incomingCall.reject();
+    }
+    setIncomingCall(undefined);
+  };
+
+  const onAcceptCall = async (): Promise<void> => {
+    if (incomingCall) {
+      const call = await incomingCall.accept();
+      onAcceptIncomingCall(call);
+    }
+    setIncomingCall(undefined);
+  };
+
   return (
-    <Stack
-      horizontal
-      wrap
-      horizontalAlign="center"
-      verticalAlign="center"
-      className={containerStyle}
-    >
-      <Image
-        alt="Welcome to the ACS 1:N Calling sample app"
-        className={imgStyle}
-        {...imageProps}
-      />
-      <Stack className={infoContainerStyle}>
-        <Text role={"heading"} aria-level={1} className={headerStyle}>
-          {headerTitle}
-        </Text>
-        <Stack
-          className={configContainerStyle}
-          tokens={configContainerStackTokens}
-        >
-          <InputField
-            defaultValue={displayName}
-            setValue={setDisplayName}
-            label="Caller's Display Name"
-            palceholder="Enter a name"
-          />
-
-          <InputField
-            required={false}
-            defaultValue="8:echo123"
-            setValue={setReceiverId}
-            label="Receiver's User ID"
-            palceholder="Default 8:echo123"
-          />
-
-          <PrimaryButton
-            disabled={!buttonEnabled}
-            className={buttonStyle}
-            text={buttonText}
-            onClick={onStartCall}
+    <>
+      {incomingCall && (
+        <Stack style={{ position: "absolute", bottom: "2rem", right: "2rem" }}>
+          <IncomingCallToast
+            callerName={incomingCall.callerInfo.displayName}
+            onClickAccept={onAcceptCall}
+            onClickReject={onRejectCall}
           />
         </Stack>
+      )}
+      <Stack
+        horizontal
+        wrap
+        horizontalAlign="center"
+        verticalAlign="center"
+        className={containerStyle}
+      >
+        <Image
+          alt="Welcome to the ACS 1:N Calling sample app"
+          className={imgStyle}
+          {...imageProps}
+        />
+        <Stack className={infoContainerStyle}>
+          <Text role={"heading"} aria-level={1} className={headerStyle}>
+            {headerTitle}
+          </Text>
+          <Stack
+            className={configContainerStyle}
+            tokens={configContainerStackTokens}
+          >
+            <TextField
+              readOnly
+              contentEditable={false}
+              label="Your User ID"
+              value={userId?.communicationUserId}
+            />
+
+            <InputField
+              required={false}
+              defaultValue="8:echo123"
+              setValue={setReceiverId}
+              label="Receiver's User ID"
+              palceholder="Default 8:echo123"
+            />
+
+            <PrimaryButton
+              className={buttonStyle}
+              text={buttonText}
+              onClick={onStartCall}
+            />
+          </Stack>
+        </Stack>
       </Stack>
-    </Stack>
+    </>
   );
 };

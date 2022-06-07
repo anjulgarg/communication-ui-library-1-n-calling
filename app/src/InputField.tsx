@@ -10,7 +10,7 @@ import {
 } from "./styles/InputField.styles";
 
 interface InputFieldProps {
-  setValue(value: string): void;
+  setValue?: (value: string) => void;
   setEmptyWarning?(isEmpty: boolean): void;
   isEmpty?: boolean;
   defaultValue?: string;
@@ -19,6 +19,7 @@ interface InputFieldProps {
   emptyErrorMessage?: string;
   maxCharsErrorMessage?: string;
   required?: boolean;
+  disabled?: boolean;
 }
 
 const DISPLAY_NAME_MAX_CHARS = 256;
@@ -35,6 +36,7 @@ export const InputField = (props: InputFieldProps): JSX.Element => {
     maxCharsErrorMessage,
     palceholder,
     required = true,
+    disabled = false,
   } = props;
   const [isInvalidLength, setIsInvalidLength] = useState<boolean>(
     !hasValidLength(defaultValue ?? "")
@@ -50,13 +52,13 @@ export const InputField = (props: InputFieldProps): JSX.Element => {
 
     if (!hasValidLength(newValue)) {
       setIsInvalidLength(true);
-      setValue("");
+      setValue && setValue("");
       return;
     } else {
       setIsInvalidLength(false);
     }
 
-    setValue(newValue);
+    setValue && setValue(newValue);
     if (setEmptyWarning && !newValue) {
       setEmptyWarning(true);
     } else {
@@ -66,6 +68,7 @@ export const InputField = (props: InputFieldProps): JSX.Element => {
 
   return (
     <TextField
+      disabled={disabled}
       autoComplete="off"
       defaultValue={defaultValue}
       inputClassName={inputBoxTextStyle}

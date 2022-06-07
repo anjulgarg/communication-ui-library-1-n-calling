@@ -1,20 +1,23 @@
 import { Call, CallAgent } from "@azure/communication-calling";
-import { AzureCommunicationTokenCredential } from "@azure/communication-common";
+import {
+  AzureCommunicationTokenCredential,
+  CommunicationUserIdentifier,
+} from "@azure/communication-common";
 import {
   CallAgentProvider,
   CallClientProvider,
   CallProvider,
   createStatefulCallClient,
   DEFAULT_COMPONENT_ICONS,
-  StatefulCallClient,
   FluentThemeProvider,
+  StatefulCallClient,
 } from "@azure/communication-react";
 import {
+  initializeIcons,
   PrimaryButton,
   registerIcons,
   Spinner,
   Stack,
-  initializeIcons,
 } from "@fluentui/react";
 import { useEffect, useState } from "react";
 import { CallScreen } from "./CallScreen";
@@ -22,16 +25,17 @@ import { CenteredContent } from "./Components/CenteredContent";
 import { HomeScreen } from "./HomeScreen";
 import { Lobby } from "./Lobby";
 import { fetchTokenResponse } from "./utils/AppUtils";
+import { WelcomeScreen } from "./WelcomeScreen";
 
-type AppPages = "home" | "initClient" | "config" | "lobby" | "call";
+type AppPages = "welcome" | "home" | "initClient" | "config" | "lobby" | "call";
 
 initializeIcons();
 registerIcons({ icons: DEFAULT_COMPONENT_ICONS });
 
 function App(): JSX.Element {
-  const [page, setPage] = useState<AppPages>("home");
+  const [page, setPage] = useState<AppPages>("welcome");
   const [token, setToken] = useState<string>("");
-  const [userId, setUserId] = useState<string>("");
+  const [userId, setUserId] = useState<CommunicationUserIdentifier>();
   const [displayName, setDisplayName] = useState<string>();
   const [receiverId, setReceiverId] = useState<
     { communicationUserId: string } | { id: string }
@@ -49,6 +53,7 @@ function App(): JSX.Element {
         const { token, user } = await fetchTokenResponse();
         setToken(token);
         setUserId(user);
+        console.log("USER ID: ", user);
       } catch (e) {
         console.error(e);
       }
@@ -74,10 +79,11 @@ function App(): JSX.Element {
    * Initialize the stateful call client
    */
   useEffect(() => {
+    if (!userId) return;
     console.log("Creating stateful call client");
     setStatefulCallClient(
       createStatefulCallClient({
-        userId: { communicationUserId: userId },
+        userId: userId,
       })
     );
   }, [userId]);
@@ -104,13 +110,11 @@ function App(): JSX.Element {
   }, [callAgent, displayName, statefulCallClient, token]);
 
   switch (page) {
-    case "home": {
-      document.title = "ACS UI Library 1:N Calling POC";
+    case "welcome": {
       return (
-        <HomeScreen
-          startCallHandler={(callDetails) => {
-            setDisplayName(callDetails.displayName);
-            setReceiverId(callDetails.receiverId);
+        <WelcomeScreen
+          onSubmit={(displayName) => {
+            setDisplayName(displayName);
             setPage("initClient");
           }}
         />
@@ -124,9 +128,28 @@ function App(): JSX.Element {
           </CenteredContent>
         );
       } else {
-        setPage("lobby");
+        setPage("home");
         return <></>;
       }
+    }
+    case "home": {
+      document.title = "ACS UI Library 1:N Calling POC";
+      return callAgent ? (
+        <HomeScreen
+          callAgent={callAgent}
+          userId={userId}
+          startCallHandler={(callDetails) => {
+            setReceiverId(callDetails.receiverId);
+            setPage("lobby");
+          }}
+          onAcceptIncomingCall={(call: Call) => {
+            setCall(call);
+            setPage("call");
+          }}
+        />
+      ) : (
+        <p>Call Agent Not Available</p>
+      );
     }
     case "lobby": {
       if (callAgent && receiverId) {
@@ -134,6 +157,10 @@ function App(): JSX.Element {
           <Lobby
             callAgent={callAgent}
             receiverId={receiverId}
+            onDisconnected={() => {
+              setCall(undefined);
+              setPage("home");
+            }}
             onConnected={(call) => {
               setCall(call);
               setPage("call");
@@ -146,7 +173,7 @@ function App(): JSX.Element {
     }
     case "call": {
       document.title = "ACS UI Library 1:N Call";
-      if (statefulCallClient && callAgent && receiverId && call) {
+      if (statefulCallClient && callAgent && call) {
         return (
           <FluentThemeProvider>
             <CallClientProvider callClient={statefulCallClient}>
@@ -155,7 +182,6 @@ function App(): JSX.Element {
                   <CallScreen
                     callClient={statefulCallClient}
                     callAgent={callAgent}
-                    receiverId={receiverId}
                     call={call}
                   />
                 </CallProvider>

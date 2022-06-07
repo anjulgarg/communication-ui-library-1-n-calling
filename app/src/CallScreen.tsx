@@ -17,7 +17,6 @@ import { AddParticipantButton } from "./CallingComponents";
 export interface CallScreenProps {
   callClient: StatefulCallClient;
   callAgent: CallAgent;
-  receiverId: { communicationUserId: string } | { id: string };
   call: Call;
 }
 
@@ -26,7 +25,7 @@ const videoStreamOptions: VideoStreamOptions = {
 };
 
 export const CallScreen = (props: CallScreenProps): JSX.Element => {
-  const { callClient, callAgent, receiverId, call } = props;
+  const { callClient, callAgent, call } = props;
 
   const videoGalleryProps = usePropsFor(VideoGallery);
   const remoteParticipants = videoGalleryProps.remoteParticipants.map((p) => {
