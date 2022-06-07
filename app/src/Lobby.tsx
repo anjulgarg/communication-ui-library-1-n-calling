@@ -1,5 +1,9 @@
 import { Call, CallAgent } from "@azure/communication-calling";
 import {
+  CallClientState,
+  StatefulCallClient,
+} from "@azure/communication-react";
+import {
   DefaultButton,
   PrimaryButton,
   Spinner,
@@ -11,6 +15,7 @@ import { CenteredContent } from "./Components/CenteredContent";
 
 export interface LobbyProps {
   callAgent: CallAgent;
+  callClient: StatefulCallClient;
   receiverId: { communicationUserId: string } | { id: string };
   onConnected: (call: Call) => void;
   onDisconnected: () => void;
@@ -19,14 +24,30 @@ export interface LobbyProps {
 const DEFAULT_CALL_STATE = "Please wait while we connect you...";
 
 export const Lobby = (props: LobbyProps): JSX.Element => {
-  const { callAgent, receiverId, onConnected, onDisconnected } = props;
+  const { callClient, callAgent, receiverId, onConnected, onDisconnected } =
+    props;
   const [call, setCall] = useState<Call>();
-  const [callState, setCallState] = useState<string>(DEFAULT_CALL_STATE);
+  const [callState, setCallState] = useState<CallClientState>(
+    callClient.getState
+  );
+
+  const callStatus = call ? callState.calls[call.id].state : DEFAULT_CALL_STATE;
+
+  useEffect(() => {
+    const stateChangeListener = (state: CallClientState) => {
+      setCallState(state);
+    };
+    callClient.onStateChange(stateChangeListener);
+    return () => {
+      callClient.offStateChange(stateChangeListener);
+    };
+    // Run only once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startCall = useCallback(() => {
     const call = callAgent.startCall([receiverId], {});
     setCall(call);
-    setCallState(DEFAULT_CALL_STATE);
     console.log(`CallId ${call?.id}`);
     return call;
   }, [callAgent, receiverId]);
@@ -42,45 +63,23 @@ export const Lobby = (props: LobbyProps): JSX.Element => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const callStateListener = useCallback(() => {
-    call && setCallState(call.state);
-  }, [call]);
-
-  const callSubscriber = useCallback(() => {
-    call && call.on("stateChanged", callStateListener);
-  }, [call, callStateListener]);
-
-  const callUnsubscriber = useCallback(() => {
-    call && call.off("stateChanged", callStateListener);
-  }, [call, callStateListener]);
-
-  /**
-   * Sub/Unsub to Call Events
-   */
-  useEffect(() => {
-    callSubscriber();
-    return () => {
-      callUnsubscriber();
-    };
-  }, [callSubscriber, callUnsubscriber]);
-
   /**
    * Run props.onConnected when call is connected
    */
   useEffect(() => {
-    if (call && callState === "Connected") {
+    if (call && callStatus === "Connected") {
       return onConnected(call);
     }
 
-    if (call && callState === "Disconnected") {
+    if (call && callStatus === "Disconnected") {
       return setCall(undefined);
     }
-  }, [callState, call, onConnected]);
+  }, [callStatus, call, onConnected]);
 
   return (
     <CenteredContent>
-      {callState !== "Disconnected" ? (
-        <Spinner label={callState} labelPosition="top" />
+      {callStatus !== "Disconnected" ? (
+        <Spinner label={callStatus} labelPosition="top" />
       ) : (
         <Stack>
           <Text style={{ paddingBottom: "1rem" }}>

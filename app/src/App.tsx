@@ -152,9 +152,10 @@ function App(): JSX.Element {
       );
     }
     case "lobby": {
-      if (callAgent && receiverId) {
+      if (statefulCallClient && callAgent && receiverId) {
         return (
           <Lobby
+            callClient={statefulCallClient}
             callAgent={callAgent}
             receiverId={receiverId}
             onDisconnected={() => {
