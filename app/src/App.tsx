@@ -179,11 +179,7 @@ function App(): JSX.Element {
             <CallClientProvider callClient={statefulCallClient}>
               <CallAgentProvider callAgent={callAgent}>
                 <CallProvider call={call}>
-                  <CallScreen
-                    callClient={statefulCallClient}
-                    callAgent={callAgent}
-                    call={call}
-                  />
+                  <CallScreen call={call} />
                 </CallProvider>
               </CallAgentProvider>
             </CallClientProvider>

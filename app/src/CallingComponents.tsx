@@ -1,7 +1,11 @@
-import { Call, RemoteParticipant } from "@azure/communication-calling";
-import { ControlBarButton } from "@azure/communication-react";
+import { Call } from "@azure/communication-calling";
 import {
-  Checkbox,
+  ControlBarButton,
+  getCallingSelector,
+  ParticipantList,
+  useSelector,
+} from "@azure/communication-react";
+import {
   DefaultButton,
   Dialog,
   DialogFooter,
@@ -9,7 +13,7 @@ import {
   Spinner,
 } from "@fluentui/react";
 import { PersonAdd20Filled } from "@fluentui/react-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CenteredContent } from "./Components/CenteredContent";
 import { InputField } from "./InputField";
 
@@ -26,6 +30,7 @@ export const AddParticipantButton = (props: {
       />
       <ControlBarButton
         onClick={() => {
+          console.log("Add Participant Button Clicked");
           setIsDialogOpen(true);
         }}
         onRenderIcon={() => <PersonAdd20Filled />}
@@ -43,57 +48,27 @@ export const AddParticipantDialog = (props: {
   onDismiss: () => void;
   addParticipant: Call["addParticipant"];
 }): JSX.Element => {
-  const [isOpen, setIsOpen] = useState(props.isOpen);
-  const [isTeamsUser, setIsTeamsUser] = useState(false);
+  const { onDismiss, isOpen } = props;
   const [participantId, setParticipantId] = useState<string>();
-  const [remoteParticipant, setRemoteParticipant] =
-    useState<RemoteParticipant>();
 
-  const [callState, setCallState] = useState<string>(
-    "Adding participant. Please wait..."
-  );
+  const { participants } = useSelector(getCallingSelector(ParticipantList));
 
-  /** Watch Props for isOpen */
-  useEffect(() => {
-    setIsOpen(props.isOpen);
-  }, [props]);
+  const remoteParticipantData = useMemo(() => {
+    return participants.find((p) => p.userId === participantId);
+  }, [participantId, participants]);
 
-  /** Subscribe to remoteParticipant call state event */
-  useEffect(() => {
-    if (!remoteParticipant) return;
-    const stateChangedListener = () => {
-      setCallState(remoteParticipant.state);
-    };
-    remoteParticipant.on("stateChanged", stateChangedListener);
-    return () => {
-      remoteParticipant.off("stateChanged", stateChangedListener);
-    };
-  }, [remoteParticipant]);
-
-  const onDismiss = useCallback(() => {
-    setIsOpen(false);
-    props.onDismiss();
-  }, [props]);
+  const callState = remoteParticipantData?.state;
 
   /** Clear remote participant if the call state is disconnected */
   useEffect(() => {
-    if (callState === "Disconnected") {
-      setRemoteParticipant(undefined);
-    } else if (callState === "Connected") {
-      setRemoteParticipant(undefined);
+    if (callState === "Disconnected" || callState === "Connected") {
       onDismiss();
     }
   }, [callState, onDismiss]);
 
   const addParticipant = async () => {
     if (!participantId) return;
-    let userId;
-    if (isTeamsUser) {
-      userId = { microsoftTeamsUserId: participantId };
-    } else {
-      userId = { communicationUserId: participantId };
-    }
-    setRemoteParticipant(await props.addParticipant(userId));
+    await props.addParticipant({ communicationUserId: participantId });
   };
 
   return (
@@ -104,7 +79,7 @@ export const AddParticipantDialog = (props: {
         dialogContentProps={{ title: "Add Participant" }}
         modalProps={{ isBlocking: true }}
       >
-        {remoteParticipant ? (
+        {remoteParticipantData ? (
           <CenteredContent>
             <br />
             <Spinner label={callState} labelPosition="bottom" />
@@ -113,14 +88,8 @@ export const AddParticipantDialog = (props: {
           <>
             <InputField
               setValue={setParticipantId}
-              label={`${isTeamsUser ? "Teams" : "Communication"} User ID`}
+              label="Communication User ID"
             />
-            <div style={{ paddingTop: "1rem", paddingBottom: "1rem" }}>
-              <Checkbox
-                label="Is Teams User"
-                onChange={(ev, checked) => setIsTeamsUser(!!checked)}
-              />
-            </div>
             <DialogFooter>
               <PrimaryButton
                 text="Add"
@@ -135,27 +104,5 @@ export const AddParticipantDialog = (props: {
         )}
       </Dialog>
     </>
-  );
-};
-
-const ParticipantCallProgress = (props: {
-  participant: RemoteParticipant;
-}): JSX.Element => {
-  const { participant } = props;
-  const [callState, setCallState] = useState<string>(
-    "Adding participant. Please wait..."
-  );
-
-  useEffect(() => {
-    participant.on("stateChanged", () => {
-      setCallState(participant.state);
-    });
-  }, [participant]);
-
-  return (
-    <CenteredContent>
-      <br />
-      <Spinner label={callState} labelPosition="bottom" />
-    </CenteredContent>
   );
 };

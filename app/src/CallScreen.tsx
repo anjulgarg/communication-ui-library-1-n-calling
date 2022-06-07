@@ -1,4 +1,4 @@
-import { Call, CallAgent } from "@azure/communication-calling";
+import { Call } from "@azure/communication-calling";
 import {
   CameraButton,
   ControlBar,
@@ -6,17 +6,14 @@ import {
   EndCallButton,
   MicrophoneButton,
   ParticipantsButton,
-  StatefulCallClient,
   usePropsFor,
   VideoGallery,
-  VideoStreamOptions,
+  VideoStreamOptions
 } from "@azure/communication-react";
 import { Stack } from "@fluentui/react";
 import { AddParticipantButton } from "./CallingComponents";
 
 export interface CallScreenProps {
-  callClient: StatefulCallClient;
-  callAgent: CallAgent;
   call: Call;
 }
 
@@ -25,7 +22,7 @@ const videoStreamOptions: VideoStreamOptions = {
 };
 
 export const CallScreen = (props: CallScreenProps): JSX.Element => {
-  const { callClient, callAgent, call } = props;
+  const { call } = props;
 
   const videoGalleryProps = usePropsFor(VideoGallery);
   const remoteParticipants = videoGalleryProps.remoteParticipants.map((p) => {
