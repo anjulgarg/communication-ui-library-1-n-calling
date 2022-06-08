@@ -6,6 +6,7 @@ import {
 import {
   CallAgentProvider,
   CallClientProvider,
+  CallClientState,
   CallProvider,
   createStatefulCallClient,
   DEFAULT_COMPONENT_ICONS,
@@ -45,6 +46,18 @@ function App(): JSX.Element {
     useState<StatefulCallClient>();
   const [callAgent, setCallAgent] = useState<CallAgent>();
   const [call, setCall] = useState<Call>();
+  const [callState, setCallState] = useState<CallClientState | undefined>(
+    statefulCallClient?.getState()
+  );
+
+  useEffect(() => {
+    if (!statefulCallClient) return;
+    const stateChangeListener = (state: CallClientState) => setCallState(state);
+    statefulCallClient.onStateChange(stateChangeListener);
+    return () => {
+      statefulCallClient.offStateChange(stateChangeListener);
+    };
+  }, [statefulCallClient]);
 
   // Get Azure Communications Service token from the server
   useEffect(() => {
@@ -134,12 +147,14 @@ function App(): JSX.Element {
     }
     case "home": {
       document.title = "ACS UI Library 1:N Calling POC";
-      return callAgent ? (
+      return callAgent && callState ? (
         <HomeScreen
+          callState={callState}
           callAgent={callAgent}
           userId={userId}
           startCallHandler={(callDetails) => {
             setReceiverId(callDetails.receiverId);
+            setCall(callAgent.startCall([callDetails.receiverId], {}));
             setPage("lobby");
           }}
           onAcceptIncomingCall={(call: Call) => {
@@ -152,11 +167,11 @@ function App(): JSX.Element {
       );
     }
     case "lobby": {
-      if (statefulCallClient && callAgent && receiverId) {
+      if (callState && call && receiverId) {
         return (
           <Lobby
-            callClient={statefulCallClient}
-            callAgent={callAgent}
+            callState={callState}
+            call={call}
             receiverId={receiverId}
             onDisconnected={() => {
               setCall(undefined);

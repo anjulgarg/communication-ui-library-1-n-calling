@@ -8,6 +8,7 @@ import {
   IncomingCallEvent,
 } from "@azure/communication-calling";
 import { CommunicationUserIdentifier } from "@azure/communication-common";
+import { CallClientState } from "@azure/communication-react";
 import { Image, PrimaryButton, Stack, Text, TextField } from "@fluentui/react";
 import { useEffect, useRef, useState } from "react";
 import heroSVG from "./assets/hero.svg";
@@ -24,6 +25,7 @@ import {
 } from "./styles/HomeScreen.styles";
 
 export interface HomeScreenProps {
+  callState: CallClientState;
   callAgent: CallAgent;
   userId?: CommunicationUserIdentifier;
   startCallHandler(callDetails: {
@@ -33,7 +35,13 @@ export interface HomeScreenProps {
 }
 
 export const HomeScreen = (props: HomeScreenProps): JSX.Element => {
-  const { callAgent, userId, startCallHandler, onAcceptIncomingCall } = props;
+  const {
+    callState,
+    callAgent,
+    userId,
+    startCallHandler,
+    onAcceptIncomingCall,
+  } = props;
   const imageProps = { src: heroSVG.toString() };
   const headerTitle = "Call an Azure Communication User";
   const buttonText = "Next";
@@ -41,6 +49,9 @@ export const HomeScreen = (props: HomeScreenProps): JSX.Element => {
   const [receiverId, setReceiverId] = useState<string | undefined>(undefined);
   const [incomingCall, setIncomingCall] = useState<IncomingCall>();
   const interval = useRef<NodeJS.Timer>();
+
+  // @TODO: Add a method in declarative callAgent to get a declarative Incoming Call Object. Use that object here.
+  console.log("incoming calls", callState.incomingCalls);
 
   /**
    * Subscribe to incoming call events.

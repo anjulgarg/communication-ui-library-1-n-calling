@@ -1,8 +1,5 @@
-import { Call, CallAgent } from "@azure/communication-calling";
-import {
-  CallClientState,
-  StatefulCallClient,
-} from "@azure/communication-react";
+import { Call } from "@azure/communication-calling";
+import { CallClientState } from "@azure/communication-react";
 import {
   DefaultButton,
   PrimaryButton,
@@ -10,12 +7,12 @@ import {
   Stack,
   Text,
 } from "@fluentui/react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 import { CenteredContent } from "./Components/CenteredContent";
 
 export interface LobbyProps {
-  callAgent: CallAgent;
-  callClient: StatefulCallClient;
+  call: Call;
+  callState: CallClientState;
   receiverId: { communicationUserId: string } | { id: string };
   onConnected: (call: Call) => void;
   onDisconnected: () => void;
@@ -24,44 +21,13 @@ export interface LobbyProps {
 const DEFAULT_CALL_STATE = "Please wait while we connect you...";
 
 export const Lobby = (props: LobbyProps): JSX.Element => {
-  const { callClient, callAgent, receiverId, onConnected, onDisconnected } =
-    props;
-  const [call, setCall] = useState<Call>();
-  const [callState, setCallState] = useState<CallClientState>(
-    callClient.getState
-  );
+  const { callState, call, receiverId, onConnected, onDisconnected } = props;
 
-  const callStatus = call ? callState.calls[call.id].state : DEFAULT_CALL_STATE;
+  const callStatus = call
+    ? callState.calls[call.id]?.state
+    : DEFAULT_CALL_STATE;
 
-  useEffect(() => {
-    const stateChangeListener = (state: CallClientState) => {
-      setCallState(state);
-    };
-    callClient.onStateChange(stateChangeListener);
-    return () => {
-      callClient.offStateChange(stateChangeListener);
-    };
-    // Run only once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const startCall = useCallback(() => {
-    const call = callAgent.startCall([receiverId], {});
-    setCall(call);
-    console.log(`CallId ${call?.id}`);
-    return call;
-  }, [callAgent, receiverId]);
-
-  /**
-   * Start a call
-   */
-  useEffect(() => {
-    if (callAgent && !call) {
-      startCall();
-    }
-    // Only call this once per page load for starting a call.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // @TODO: How do we implement retry mechanism only using stateful client and call agent?
 
   /**
    * Run props.onConnected when call is connected
@@ -70,11 +36,7 @@ export const Lobby = (props: LobbyProps): JSX.Element => {
     if (call && callStatus === "Connected") {
       return onConnected(call);
     }
-
-    if (call && callStatus === "Disconnected") {
-      return setCall(undefined);
-    }
-  }, [callStatus, call, onConnected]);
+  }, [call, callStatus, onConnected]);
 
   return (
     <CenteredContent>
@@ -91,7 +53,7 @@ export const Lobby = (props: LobbyProps): JSX.Element => {
             </p>
           </Text>
           <Stack horizontal tokens={{ childrenGap: "1rem" }}>
-            <PrimaryButton text="Retry Call" onClick={startCall} />
+            <PrimaryButton text="Retry Call" onClick={() => {}} />
             <DefaultButton text="Return to Home" onClick={onDisconnected} />
           </Stack>
         </Stack>
