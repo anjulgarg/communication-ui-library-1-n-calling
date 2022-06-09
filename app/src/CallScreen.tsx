@@ -8,7 +8,8 @@ import {
   ParticipantsButton,
   usePropsFor,
   VideoGallery,
-  VideoStreamOptions
+  VideoStreamOptions,
+  HoldButton,
 } from "@azure/communication-react";
 import { Stack } from "@fluentui/react";
 import { AddParticipantButton } from "./CallingComponents";
@@ -44,6 +45,7 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
         <ControlBar layout="floatingBottom">
           <CameraButton {...usePropsFor(CameraButton)} />
           <MicrophoneButton {...usePropsFor(MicrophoneButton)} />
+          <HoldButton {...usePropsFor(HoldButton)} />
           <DevicesButton {...usePropsFor(DevicesButton)} />
           <AddParticipantButton addParticipant={call.addParticipant} />
           <ParticipantsButton {...usePropsFor(ParticipantsButton)} />
